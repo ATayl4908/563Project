@@ -1,0 +1,5 @@
+[ID: 0920561744]
+run	arithmetic_mean	harmonic_mean	values_discarded
+1	-7.829678e+004	-7.833437e+004	no
+2	-7.830882e+004	-7.836240e+004	no
+all	-7.829747e+004	-7.836170e+004	no

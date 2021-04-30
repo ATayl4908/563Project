@@ -1,0 +1,67 @@
+---
+title: "563 Reproducible Script"
+output: html_notebook
+---
+# __Data acquisition:__ 
+51 amino acid sequences and corresponding coding DNA sequences for the protein *NKCC* from 19 species were obtained from several genome databases via tBLASTn searches from the *Eurytemora affinis* NKCC1 protein, as noted in spreadsheet "NKCCdata.xlsx". Several of these sequences were obtained from prior work by a prior student, as noted in the document. Sequences were then manually compiled into two separate files containing all sequences of each type; these files were named "NKCC-AA.fa" for the unaligned amino acid compilation and "NKCC-CDS.fa" for the unaligned coding sequence compilation. 
+
+# __Protein alignment:__
+## PSI/TM-Coffee:
+NKCC-AA.fa was uploaded to the PSI/TM-Coffee webserver (found at http://tcoffee.crg.cat/apps/tcoffee/do:tmcoffee). The "transmembrane" option was checked on and Homology Extension was set to *UniRef100 -- Slow/Accurate*. "outorder" option was set to "aligned". All other options were left as default and the RUN button was selected.
+
+  The transmembrane option was selected because NKCC is a transmembrane protein. The slow/accurate option was selected to maximize alignment quality. "outorder" was set to aligned because the order of sequences can affect the phylogeny construction in some softwares. 
+
+  The webserver offers many file types as outputs. I selected ClustalW as the alignment file format and saved the alignment as "PSITM-Coffee-AA.aln". 
+  
+## TM-Aligner:
+NKCC-AA.fa was uploaded to TM-Aligner (found at https://lms.snu.edu.in/TM-Aligner/). All options were left at default and the RUN button was selected. 
+  Output alignment file, in FASTA format, was saved as TM-Aligner-AA.fa
+  
+  Note: This alignment was ultimately chosen for producing the phylogenies.
+
+## T-Coffee:
+T-Coffee was installed on a Ubuntu virtual machine via the command `sudo apt-get install -y t-coffee`. This installed T-Coffee version 12.00.7fb08c2. NKCC-AA.fa was input into T-Coffee via the command `t_coffee NKCC-AA.fa -outfile=T-Coffee-AA.aln`. This uses the default T-Coffee settings and outputs an alignment in ClustalW format, with the filename "T-Coffee-AA.aln", as well as a guide tree titled NKCC-AA.dnd which can be used for several other T-Coffee functions.
+
+  The TM-Aligner output was run through T-Coffee to generate a guide tree file via the command `t_coffee TM-Aligner-AA.fa -outfile=T-Coffee-TM-Aligner-AA.aln`. This produced another alignment (T-Coffee-TM-Aligner-AA.aln) and a guide tree file (T-Coffee-TM-Aligner-AA.dnd). The alignment did not appear to have been changed by the second alignment process. 
+  
+  The TM-Aligner output was also evaluated to produce a score file via the command `T_coffee TM-Aligner-AA.fa -evaluate_mode t_coffee_fast -output score_ascii`. This scores each column in the alignment according to its consistency. This command output two files: a guide tree (TM-Aligner-AA.dnd) and the score_ascii file (TM-Aligner-AA.score_ascii). The `fast` option generally produces scores that are higher than the other options for this command; this will help us be conservative with the data we remove when we trim the alignment, as the trimming option will remove all columns below a certain score.  
+
+# Threading via T-Coffee:
+The command `t_coffee -other_pg seq_reformat -in TM-Aligner-AA.fa -in2 NKCC-CDS.fa -action +thread_dna_on_prot_aln -output clustalw -out CDSAln.aln` was run in the the terminal in Ubuntu. This command uses the amino acid alignment (in this case, the one from TM-Aligner) and the unaligned coding DNA sequence compilation as inputs and "threads" the CDS onto the protein alignment, producing a CDS alignment in ClustalW format, with the filename "CDSAln.aln". 
+
+# Trimming the alignments
+`t_coffee -other_pg seq_reformat -in TM-Aligner-AA.fa struc_in TM-Aligner-AA.score_ascii -struc_in_f number_aln -output clustalw -output tcs_column_filter5 -out Filtered-TM-Aligner-AA.aln` was run. This filters out all columns with a transitive consistency score less than 5 from the alignment. 
+
+`t_coffee -other_pg seq_reformat -in TM-Aligner-AA.fa -in2 NKCC-CDS.fa -struc_in TM-Aligner-AA.score_ascii -struc_in f_number_aln -output tcs_column_filter5 -out Filtered-TM-Aligner-CDS.aln` was run. This does the same as before but produces a CDS alignment rather than an amino acid aligment. 
+
+The filtered alignments did not appear to be significantly different in quality from the nonfiltered alignments, so only the nonfiltered alignments were used for making trees.
+
+# Making Trees
+## Maximim Likelihood: IQ-TREE
+IQ-Tree 2 was downloaded from http://www.iqtree.org/#download and extracted. I used the 64-bit version of version 1.6.12. Each alignment file (CDSAln.aln and TM-Aligner-AA.fa) was copied to the iqtree folder. The terminal was directed to the iqtree folder via `cd` and the command `bin\iqtree2 -s file.aln -m MFP -o C.gig_NKCC-likeb -bb 1000 -nt AUTO` was run for each alignment, with *file.aln* replaced with the file name of each alignment. `bin\iqtree2` directs the terminal to the IQ-Tree program. `-s file.aln` specifies the input file. `-m` specifies the model, and `MFP` refers to ModelFinder, a program that automatically selects the model of best fit. `-o` sets the outgroup. I set mine to one of the proteins from a bivalve, which is the most basal organism in the dataset. `-bb` sets the number of ultrafast boostrap replicates. `-nt` sets the number of CPU cores to use; `AUTO` automatically determines the optimum number. 
+
+The relevant output of the IQ-Tree job will have the file type .treefile. These can be opened with any tree viewer, such as FigTree.
+
+## Bayesian: MrBayes
+MrBayes-3.2.7.-WIN.zip was downloaded from http://nbisweden.github.io/MrBayes/download.html. The zip was extracted to another directory. MrBayes requires NEXUS file format. This format limits the lengths of sequence titles, so all sequence titles had to be manually edited. The format of this editing was as follows: if the sequence title was "Xxxx_NKCC-liken", the "_NKCC-like" was removed and the paralog letter was capitalized, leaving "XxxxN". For NCC69-like sequences, the title was reduced to "XxxNCC". For sequences without multiple paralogs, the paralog letter was removed entirely, leaving simply "Xxxx". After this editing, alignments were reformatted to NEXUS format in UGENE (downloaded from http://ugene.net/download-all.html; v38.1, 64-bit) via the "Save Alignment as..." menu, with NEXUS selected as the file format option.
+
+"CDSaln.aln" was copied for the purpose of editing and renamed to "CDSalnCopy.aln". The file name after reformatting was "CDSalnCopy.nex". Likewise, "TM-Aligner-AA.fa" was copied and renamed to "TM-Aligner-AAcopy.fa" then reformatted to "TM-Aligner-AAcopy.nex". 
+
+Alignments were run in MrBayes by appending the BayesBlock 
+```
+begin mrbayes;
+
+	lset nst=6 rates=gamma;
+
+	prset applyto=(all) ratepr=variable;
+[	unlink statefreq=(all) shape=(all) tratio=(all);]
+	unlink statefreq=(all) revmat=(all) shape=(all);
+
+	mcmc ngen=100000 printfreq=1000 samplefreq=100 diagnfreq=5000 burninfrac=0.2;
+	sumt contype=allcompat;
+	sump;
+end;
+```
+to the end of the NEXUS files. `lset nst=6 rates=gamma` sets the model to GTR with gamma-distributed rate variation. `mcmc ngen=100000` causes MrBayes to perform 100000 runs. Ideally, one should continue to add more generations until the reported average standard deviation of split frequencies drops below 0.01, but I stopped at 100000 in the interest of time. 
+
+To run MrBayes, open the MrBayes.exe found in the bin folder. This opens up a terminal window. Here, I entered `execute` and copy and pasted in the directory to my NEXUS file. I performed this both NEXUS-formatted alignments (one CDS and one amino acid). MrBayes outputs a large number of files; the tree file that we are interested has the name format of "AlignmentName.nex.con.tre". 
